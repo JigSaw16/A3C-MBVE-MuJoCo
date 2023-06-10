@@ -27,13 +27,21 @@ import torch.nn.functional as F
 
 
 # Globalna sieć neuronowa (actor-critic)
-class AC_Network(nn.Module):
+class ActorCritic(nn.Module):
     def __init__(self, state_size, action_size):
-        super(AC_Network, self).__init__()
+        super(ActorCritic, self).__init__()
         self.dense1 = nn.Linear(state_size, 256)
         self.policy_logits = nn.Linear(256, action_size)
         self.dense2 = nn.Linear(256, 256)
         self.value = nn.Linear(256, 1)
+
+        # Inicjalizacja thread-specific parametrów θ0 i θ0v
+        self.theta0 = torch.zeros(1)  # Przykładowa inicjalizacja wartości początkowej
+        self.theta0v = torch.zeros(1)  # Przykładowa inicjalizacja wartości początkowej
+
+    def synchronize_parameters(self, global_theta, global_theta_v):
+        self.theta0 = global_theta  # Przypisanie wartości globalnego parametru θ do thread-specific parametru θ0
+        self.theta0v = global_theta_v  # Przypisanie wartości globalnego parametru θv do thread-specific parametru θ0v
 
     def forward(self, x):
         x = F.relu(self.dense1(x))

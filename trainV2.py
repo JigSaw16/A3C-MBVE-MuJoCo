@@ -6,6 +6,21 @@ import matplotlib.pyplot as plt
 import threading
 import numpy as np
 
+
+def select_action(state, policy_network):
+    with torch.no_grad():
+        # Przekształć stan na tensor
+        state_tensor = torch.tensor(state, dtype=torch.float32)
+
+        # Oblicz wartości akcji przy użyciu sieci policy_network
+        policy_probs = policy_network(state_tensor)
+
+        # Wybierz akcję na podstawie rozkładu prawdopodobieństwa
+        action = torch.multinomial(policy_probs, 1).item()
+
+        return action
+
+
 # Tworzenie środowiska Gym
 env = gym.make('InvertedPendulum-v4')
 state_size = env.observation_space.shape[0]
@@ -13,9 +28,9 @@ action_size = env.action_space.shape[0]
 
 # Hyperparametry
 learning_rate = 0.001
-num_workers = torch.multiprocessing.cpu_count()
-global_episodes = 1000
-max_steps = 500
+num_workers = 1  # torch.multiprocessing.cpu_count()
+global_episodes = 10000
+max_steps = 200
 update_frequency = 1
 
 actor_critic = ActorCritic(state_size, action_size)
@@ -36,7 +51,7 @@ def worker_agent(agent_, env_, max_steps_, global_episodes_, idx):
 
     # global T_counter
     global episode_rewards
-    # t_counter = 1
+
     for episode in range(global_episodes_):
 
         # Reset gradients dθ and dθv
@@ -53,31 +68,31 @@ def worker_agent(agent_, env_, max_steps_, global_episodes_, idx):
         episode_reward = 0
         done = False
 
+        t_counter = 0
         # while not done:
-        for _ in range(max_steps_):
+        while not done:
             if len(state) != state_size:
                 state = state[0]
 
             # with threading.Lock():
             # state_tensor = torch.from_numpy(state)  # converting the numpy array into a torch tensor
-            # state = state.clone().detach().requires_grad_(True)
-            # state = torch.from_numpy(np.array(state, dtype=np.float32))
-            # action = agent_.sample_action(, agent_.theta0)
-            # next_state, reward, done, _, _ = env_.step([0])
-        #
-        #     # t_counter += 1
-        #     # T_counter += 1
-        #
-        #     episode_reward += reward
-        #     with threading.Lock():
-        #         actions.append(action)
-        #         states.append(state)
-        #         rewards.append(reward)
-        #
-            if done:
+
+            state_tensor = torch.from_numpy(np.array([state], dtype=np.float32))
+            action = agent_.sample_action(state_tensor, agent_.theta0)
+            # print(action)
+            next_state, reward, done, _, info = env_.step(np.array([action]))
+
+            episode_reward += reward
+            t_counter += 1
+            if t_counter >= 200:
                 break
-        #
-            # state = next_state
+            state = next_state
+
+            # with threading.Lock():
+            #     actions.append(action)
+            #     states.append(state)
+            #     rewards.append(reward)
+        episode_rewards.append(episode_reward)
         '''
         if done:
             R = 0  # cumulative reward
