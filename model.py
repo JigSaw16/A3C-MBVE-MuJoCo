@@ -1,39 +1,17 @@
-import numpy as np
-import tensorflow as tf
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
-# Definicja modelu sieci neuronowej
-# class ActorCritic(tf.keras.Model):
-#     def __init__(self, state_size, action_size):
-#         super(ActorCritic, self).__init__()
-#         self.hidden = tf.Variable(tf.random.normal([state_size, 16]), name="hidden")
-#         self.output_policy = tf.Variable(tf.random.normal([16, action_size]), name="output_policy")
-#         self.output_value = tf.Variable(tf.random.normal([16, 1]), name="output_value")
-#
-#     def call(self, inputs):
-#         hidden = tf.nn.relu(tf.matmul(inputs, self.hidden))
-#         policy = tf.nn.softmax(tf.matmul(hidden, self.output_policy))
-#         value = tf.matmul(hidden, self.output_value)
-#         return policy, value
-#
-#     def get_action(self, state):
-#         policy, _ = self(state)
-#         return np.random.choice(np.arange(policy.shape[-1]), p=policy.numpy()[0])
-#
-#     def update_network(self, network):
-#         self.local_network.set_weights(network.get_weights())
+import torch.distributions as D
 
 
-# Globalna sieć neuronowa (actor-critic)
 class ActorCritic(nn.Module):
-    def __init__(self, state_size, action_size):
+    def __init__(self, input_dim, output_dim):
         super(ActorCritic, self).__init__()
-        self.dense1 = nn.Linear(state_size, 256)
-        self.policy_logits = nn.Linear(256, action_size)
-        self.dense2 = nn.Linear(256, 256)
-        self.value = nn.Linear(256, 1)
+        self.size_ = 128
+        self.fc_shared = nn.Linear(input_dim, self.size_)
+        self.fc_policy = nn.Linear(self.size_, self.size_)
+        self.fc_policy_output = nn.Linear(self.size_, output_dim)
+        self.fc_value = nn.Linear(self.size_, self.size_)
+        self.fc_value_output = nn.Linear(self.size_, 1)
 
         # Inicjalizacja thread-specific parametrów θ0 i θ0v
         self.theta0 = torch.zeros(1)  # Przykładowa inicjalizacja wartości początkowej
@@ -43,76 +21,48 @@ class ActorCritic(nn.Module):
         self.theta0 = global_theta  # Przypisanie wartości globalnego parametru θ do thread-specific parametru θ0
         self.theta0v = global_theta_v  # Przypisanie wartości globalnego parametru θv do thread-specific parametru θ0v
 
+    def sample_action(self, state):
+        policy_probs, _ = self.forward(state)
+        dist = D.Categorical(policy_probs)
+        action = dist.sample()
+        return action.item()
+
     def forward(self, x):
-        x = F.relu(self.dense1(x))
-        policy = self.policy_logits(x)
-        x = F.relu(self.dense2(x))
-        value = self.value(x)
-        return policy, value
+        x_shared = torch.relu(self.fc_shared(x))
 
-# class ActorCritic(nn.Module):
-#     def __init__(self, state_dim, action_dim):
-#         super(ActorCritic, self).__init__()
-#         self.fc1 = nn.Linear(state_dim, 64)
-#         self.fc2 = nn.Linear(64, 64)
-#
-#         # Warstwa liniowa dla polityki (aktora)
-#         self.policy = nn.Linear(64, action_dim)
-#
-#         # Warstwa liniowa dla wartości (krytyka)
-#         self.value = nn.Linear(64, 1)
-#
-#     def forward(self, state):
-#         x = torch.relu(self.fc1(state))
-#         x = torch.relu(self.fc2(x))
-#
-#         # Polityka (aktor)
-#         policy_output = self.policy(x)
-#         action_probs = F.softmax(policy_output, dim=-1)
-#
-#         # Wartość (krytyk)
-#         value = self.value(x)
+        x_policy = torch.relu(self.fc_policy(x_shared))
+        policy_logits = self.fc_policy_output(x_policy)
+        policy_probs = torch.softmax(policy_logits, dim=-1)
 
-        # return action_probs, value
+        x_value = torch.relu(self.fc_value(x_shared))
+        value = self.fc_value_output(x_value)
 
-# class ActorCritic(nn.Module):
-#     def __init__(self, state_dim, action_dim):
-#         super(ActorCritic, self).__init__()
-#         self.fc1 = nn.Linear(state_dim, 64)
-#         self.fc2 = nn.Linear(64, 64)
-#         self.fc3 = nn.Linear(64, action_dim)
-#
-#     def forward(self, state):
-#         x = torch.relu(self.fc1(state))
-#         x = torch.relu(self.fc2(x))
-#         q_values = self.fc3(x)
-#         return q_values
+        return policy_probs, value
 
-# class ActorCritic(nn.Module):
-#     def __init__(self, state_dim, action_dim):
-#         super(ActorCritic, self).__init__()
-#
-#         # Warstwy sieci policy
-#         self.fc_policy1 = nn.Linear(state_dim, 64)
-#         self.fc_policy2 = nn.Linear(64, 64)
-#         self.fc_policy3 = nn.Linear(64, action_dim)
-#         self.softmax = nn.Softmax(dim=1)
-#
-#         # Warstwy sieci krytyka
-#         self.fc_value1 = nn.Linear(state_dim, 64)
-#         self.fc_value2 = nn.Linear(64, 64)
-#         self.fc_value3 = nn.Linear(64, 1)
-#
-#     def forward(self, state):
-#         # Obliczenia dla sieci policy
-#         x_policy = torch.relu(self.fc_policy1(state))
-#         x_policy = torch.relu(self.fc_policy2(x_policy))
-#         logits = self.fc_policy3(x_policy)
-#         action_probs = self.softmax(logits)
-#
-#         # Obliczenia dla sieci krytyka
-#         x_value = torch.relu(self.fc_value1(state))
-#         x_value = torch.relu(self.fc_value2(x_value))
-#         state_value = self.fc_value3(x_value)
-#
-#         return action_probs, state_value
+
+'''
+// Assume global shared parameter vectors θ and θv and global shared counter T = 0
+// Assume thread-specific parameter vectors θ0 and θ0v
+Initialize thread step counter t ← 1
+repeat
+    Reset gradients: dθ ← 0 and dθv ← 0.
+    Synchronize thread-specific parameters θ0 = θ and θ0v = θv
+    tstart = t
+    Get state st
+    repeat
+        Perform at according to policy π(at|st; θ0)
+        Receive reward rt and new state st+1
+        t ← t + 1
+        T ← T + 1
+    until terminal st or t − tstart == tmax
+    R = 0 for terminal st
+    or
+    R = V(st, θ0v) for non - terminal st // Bootstrap from last state
+    for i ∈ {t − 1, . . . , tstart} do
+        R ← ri + γR
+        Accumulate gradients wrt θ0: dθ ← dθ + ∇θ0 log π(ai|si; θ0)(R − V (si; θ0v))
+        Accumulate gradients wrt θ0v: dθv ← dθv + ∂ (R − V (si; θ0v))2/∂θ0v
+    end for
+    Perform asynchronous update of θ using dθ and of θv using dθv.
+until T > Tmax
+'''
