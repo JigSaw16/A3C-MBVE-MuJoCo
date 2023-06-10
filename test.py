@@ -1,11 +1,11 @@
 import gym
 import numpy as np
 import tensorflow as tf
-from model import AC_Network
+from model import ActorCritic
 
 print("---------------------- TEST ----------------------")
 # Testowanie modelu
-test_episodes = 100
+test_episodes = 1000
 test_rewards = []
 steps = []
 
@@ -17,10 +17,10 @@ for _ in range(test_episodes):
     step = 0
     state_size = env_test.observation_space.shape[0]
     action_size = env_test.action_space.shape[0]
-    best_network = AC_Network(state_size, action_size)
+    best_network = ActorCritic(state_size, action_size)
 
     best_network.build(input_shape=(None, state_size))
-    best_network.load_weights('wyuczone_wagi_steps_500.h5')
+    best_network.load_weights('wyuczone_wagi_steps_100t10.h5')
 
     while not done:
         if len(s_) != state_size:
@@ -39,5 +39,3 @@ average_steps = np.mean(steps)
 average_reward = np.mean(test_rewards)
 print("Średnia nagroda po testowaniu:", average_reward)
 print("Średnia ilość kroków po testowaniu:", average_steps)
-
-
