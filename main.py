@@ -26,12 +26,12 @@ class SharedAdam(T.optim.Adam):
                 state['exp_avg'].share_memory_()
                 state['exp_avg_sq'].share_memory_()
                # print(self.state)
-                osd = self.state_dict()
-                for _, bufs in osd["state"].items():
-                    if "step" in bufs.keys():
-                        # convert state_step back from int into a singleton tensor
-                        
-                        bufs["step"] = T.tensor(bufs["step"])
+        osd = self.state_dict()
+        for _, bufs in osd["state"].items():
+            if "step" in bufs.keys():
+                # convert state_step back from int into a singleton tensor
+                
+                bufs["step"] = T.tensor(bufs["step"])
 class ActorCritic(nn.Module):
     def __init__(self, input_dims, n_actions, gamma=0.99):
         super(ActorCritic, self).__init__()
@@ -42,12 +42,12 @@ class ActorCritic(nn.Module):
         self.v1 = nn.Linear(*input_dims, 128)
         self.pi = nn.Linear(128, n_actions)
         self.v = nn.Linear(128, 1)
-        self.scores=[]
         self.rewards = []
         self.actions = []
         self.states = []
     
     def remember(self, state, action, reward):
+        #print(self.states)
         self.states.append(state)
         self.actions.append(action)
         self.rewards.append(reward)
@@ -68,7 +68,8 @@ class ActorCritic(nn.Module):
         return pi, v
 
     def calc_R(self, done):
-        states = T.tensor(self.states, dtype=T.float)
+        buf=np.array(self.states)
+        states = T.tensor(buf, dtype=T.float)
         _, v = self.forward(states)
 
         R = v[-1]*(1-int(done))
@@ -84,9 +85,9 @@ class ActorCritic(nn.Module):
 
     def calc_loss(self, done):
         
-        self.states=np.array(self.states)
+        buf=np.array(self.states)
 
-        states = T.tensor(self.states, dtype=T.float)
+        states = T.tensor(buf, dtype=T.float)
 
         actions = T.tensor(self.actions, dtype=T.float)
 
@@ -138,14 +139,15 @@ class Agent(mp.Process):
             truncated = False
             observation = self.env.reset()
             observation=observation[0]
+            #print(observation)
             #print("reset",observation)
             score = 0
             self.local_actor_critic.clear_memory()
             while not done:
                 action = self.local_actor_critic.choose_action(observation)
                 #print(action)
-                observation_, reward, done, truncated,info = self.env.step([action-3])
-                done=done or truncated
+                observation_, reward, done, truncated,info = self.env.step([(action-6)/2])
+                #done=done or truncated
                 #print("step",observation_)
                 score += reward
                 self.local_actor_critic.remember(observation, action, reward)
@@ -160,13 +162,17 @@ class Agent(mp.Process):
                     self.optimizer.step()
                     self.local_actor_critic.load_state_dict(
                             self.global_actor_critic.state_dict())
-                    self.local_actor_critic.clear_memory()
+                    #self.local_actor_critic.clear_memory()
                 t_step += 1
                 observation = observation_
             with self.episode_idx.get_lock():
+                with global_scores.get_lock():
+                    global_scores.get_obj()[self.episode_idx.value-1]=score
                 self.episode_idx.value += 1
-                self.local_actor_critic.scores.append(score)
-                print(self.name, 'episode ', self.episode_idx.value, 'reward %.1f' % score)
+
+                #self.local_actor_critic.scores.append(score)
+
+            print(self.name, 'episode ', self.episode_idx.value, 'reward %.1f' % score)
             # if t_step%20==0:
             #     with self.episode_idx.get_lock():
             #         self.episode_idx.value += 20
@@ -177,7 +183,7 @@ if __name__ == '__main__':
     lr = 1e-4
     #env_id = 'CartPole-v1'
     env_id = "InvertedPendulum-v4"
-    n_actions = 7
+    n_actions = 13
     input_dims = [4]
     N_GAMES = 3000
     T_MAX = 5
@@ -186,6 +192,7 @@ if __name__ == '__main__':
     optim = SharedAdam(global_actor_critic.parameters(), lr=lr, 
                         betas=(0.92, 0.999))
     global_ep = mp.Value('i', 0)
+    global_scores= mp.Array('d',N_GAMES+10)
     workers = [Agent(global_actor_critic,
                     optim,
                     input_dims,
@@ -197,7 +204,13 @@ if __name__ == '__main__':
                     env_id=env_id) for i in range(1)]
     [w.start() for w in workers]
     [w.join() for w in workers]
-    print(workers[0].name)
-    plt.plot(global_actor_critic.scores)
+    scores=[]
+    x=[]
+    for i in range(global_scores.get_obj()._length_):
+        if global_scores.get_obj()[i] >0:
+            x.append(i)
+            scores.append(global_scores.get_obj()[i])
+    #print(scores)
+    plt.scatter(x,scores)
     plt.show()
 
