@@ -201,7 +201,7 @@ if __name__ == '__main__':
                     lr=lr,
                     name=i,
                     global_ep_idx=global_ep,
-                    env_id=env_id) for i in range(1)]
+                    env_id=env_id) for i in range(3)]
     [w.start() for w in workers]
     [w.join() for w in workers]
     scores=[]
