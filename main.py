@@ -150,6 +150,8 @@ class Agent(mp.Process):
                 #done=done or truncated
                 #print("step",observation_)
                 score += reward
+                if score >= 500:
+                    break
                 self.local_actor_critic.remember(observation, action, reward)
                 if t_step % T_MAX == 0 or done:
                     loss = self.local_actor_critic.calc_loss(done)
@@ -171,8 +173,10 @@ class Agent(mp.Process):
                 self.episode_idx.value += 1
 
                 #self.local_actor_critic.scores.append(score)
+            # if t_step%500==0:
 
             print(self.name, 'episode ', self.episode_idx.value, 'reward %.1f' % score)
+
             # if t_step%20==0:
             #     with self.episode_idx.get_lock():
             #         self.episode_idx.value += 20
@@ -183,10 +187,10 @@ if __name__ == '__main__':
     lr = 1e-4
     #env_id = 'CartPole-v1'
     env_id = "InvertedPendulum-v4"
-    n_actions = 13
+    n_actions = 12
     input_dims = [4]
-    N_GAMES = 3000
-    T_MAX = 5
+    N_GAMES = 5000
+    T_MAX = 100
     global_actor_critic = ActorCritic(input_dims, n_actions)
     global_actor_critic.share_memory()
     optim = SharedAdam(global_actor_critic.parameters(), lr=lr, 
@@ -201,7 +205,7 @@ if __name__ == '__main__':
                     lr=lr,
                     name=i,
                     global_ep_idx=global_ep,
-                    env_id=env_id) for i in range(3)]
+                    env_id=env_id) for i in range(mp.cpu_count())]
     [w.start() for w in workers]
     [w.join() for w in workers]
     scores=[]
@@ -211,6 +215,9 @@ if __name__ == '__main__':
             x.append(i)
             scores.append(global_scores.get_obj()[i])
     #print(scores)
+    coefficients = np.polyfit(x, scores, 3)
+    trendline = np.polyval(coefficients, x)
     plt.scatter(x,scores)
+    plt.plot(x, trendline, color='red')  # Dodanie linii trendu
     plt.show()
 
