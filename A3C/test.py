@@ -69,7 +69,7 @@ if __name__ == '__main__':
     input_dims = [4]
     N_GAMES = 8000
     global_actor_critic = ActorCritic(input_dims, n_actions)
-    global_actor_critic.load_state_dict(T.load('model_weights.pth'))
+    global_actor_critic.load_state_dict(T.load('A3C/model_weights.pth'))
     global_actor_critic.share_memory()
     global_ep = mp.Value('i', 0)
     global_scores= mp.Array('d',N_GAMES+10)

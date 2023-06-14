@@ -190,7 +190,7 @@ if __name__ == '__main__':
             x.append(i)
             scores.append(global_scores.get_obj()[i])
 
-    T.save(global_actor_critic.state_dict(), 'model_weights.pth')
+    T.save(global_actor_critic.state_dict(), 'A3C/model_weights.pth')
     coefficients = np.polyfit(x, scores, 6)
     trendline = np.polyval(coefficients, x)
     plt.scatter(x,scores)
