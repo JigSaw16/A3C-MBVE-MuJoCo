@@ -1,31 +1,28 @@
-# A3C_MBVE_MuJoCo
-
-1. Inicjalizacja:
-    - Inicjalizacja globalnego modelu sieci neuronowej.
-    - Inicjalizacja globalnego licznika kroków.
-
-2. Asynchroniczne środowiska:
-
-    - Utworzenie kilku asynchronicznych agentów, każdy w swoim środowisku.
-    - Przypisanie każdemu agentowi lokalnego modelu sieci neuronowej, który jest klonem globalnego modelu.
-
-3. Asynchroniczne uczenie:
-
-    - Dla każdego agenta:
-        - Pobierz stan początkowy ze środowiska.
-        - Dopóki nie osiągnięto pewnego warunku końcowego:
-            - Wykonaj kroki w środowisku, korzystając z lokalnego modelu sieci neuronowej.
-            - Zbierz doświadczenie w postaci obserwacji, nagród i stanów następnych.
-            - Aktualizuj lokalny model sieci neuronowej poprzez obliczenie gradientów za pomocą algorytmu propagacji wstecznej i stosowanie ich do lokalnego modelu.
-            - Wysyłaj lokalne zmiany modelu do globalnego modelu.
-            - Aktualizuj licznik kroków.
-
-
-4. Aktualizacja globalnego modelu:
-
-    - Jeśli licznik kroków osiągnie określoną wartość, zatrzymaj trenowanie agentów i przeprowadź aktualizację globalnego modelu.
-    - Zsumuj lokalne zmiany modelu ze wszystkich agentów.
-    - Zastosuj zsumowane zmiany do globalnego modelu za pomocą algorytmu propagacji wstecznej.
-
-5. Powtórz kroki 3-4:
-    - Wznów asynchroniczne uczenie agentów, poczynając od aktualizowanego globalnego modelu.
+# Implementation of algarithms A3C and MBVE in MuJoCo in Python
+## A3C algarithm
+```
+// Assume global shared parameter vectors θ and θv and global shared counter T = 0 \
+// Assume thread-specific parameter vectors θ0 and θ0v
+Initialize thread step counter t ← 1
+repeat
+Reset gradients: dθ ← 0 and dθv ← 0.
+    Synchronize thread-specific parameters θ0 = θ and θ0v = θv
+    tstart = t
+    Get state st
+    repeat
+        Perform at according to policy π(at|st; θ0)
+        Receive reward rt and new state st+1
+        t ← t + 1
+        T ← T + 1
+    until terminal st or t − tstart == tmax
+    R = 0 for terminal st
+    or
+    R = V(st, θ0v) for non - terminal st // Bootstrap from last state
+    for i ∈ {t − 1, . . . , tstart} do
+        R ← ri + γR
+        Accumulate gradients wrt θ0: dθ ← dθ + ∇θ0 log π(ai|si; θ0)(R − V (si; θ0v))
+        Accumulate gradients wrt θ0v: dθv ← dθv + ∂ (R − V (si; θ0v))2/∂θ0v
+    end for
+    Perform asynchronous update of θ using dθ and of θv using dθv.
+until T > Tmax
+```
