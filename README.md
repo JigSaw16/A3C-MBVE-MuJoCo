@@ -27,5 +27,5 @@ Reset gradients: dθ ← 0 and dθv ← 0.
 until T > Tmax
 ```
 ## MBVE algorithm
-MBVE is based on DDGP with modification of including information about future reward and states based of the model of the environment.
+MBVE is based on DDGP with modification of including information about future rewards and states based of the model of the environment.
 In our case we use second mujoco simulation as a perfect model. Most important part of the algorithm is located in learn() method of Agent class.
