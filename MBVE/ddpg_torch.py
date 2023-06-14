@@ -61,13 +61,13 @@ class ReplayBuffer(object):
 
 class CriticNetwork(nn.Module):
     def __init__(self, beta, input_dims, fc1_dims, fc2_dims, n_actions, name,
-                 chkpt_dir='tmp/ddpg'):
+                 chkpt_dir='./MBVE/models'):
         super(CriticNetwork, self).__init__()
         self.input_dims = input_dims
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.n_actions = n_actions
-        self.checkpoint_file = os.path.join(chkpt_dir,name+'_ddpg')
+        self.checkpoint_file = os.path.join(chkpt_dir,name+'MBVE')
         self.fc1 = nn.Linear(*self.input_dims, self.fc1_dims)
         f1 = 1./np.sqrt(self.fc1.weight.data.size()[0])
         T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
@@ -121,13 +121,13 @@ class CriticNetwork(nn.Module):
 
 class ActorNetwork(nn.Module):
     def __init__(self, alpha, input_dims, fc1_dims, fc2_dims, n_actions, name,
-                 chkpt_dir='tmp/ddpg'):
+                 chkpt_dir='./MBVE/models'):
         super(ActorNetwork, self).__init__()
         self.input_dims = input_dims
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.n_actions = n_actions
-        self.checkpoint_file = os.path.join(chkpt_dir,name+'_ddpg')
+        self.checkpoint_file = os.path.join(chkpt_dir,name+'MBVE')
         self.fc1 = nn.Linear(*self.input_dims, self.fc1_dims)
         f1 = 1./np.sqrt(self.fc1.weight.data.size()[0])
         T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
@@ -180,7 +180,7 @@ class ActorNetwork(nn.Module):
 class Agent(object):
     def __init__(self, alpha, beta, input_dims, tau, env:InvertedPendulumEnv,model:InvertedPendulumEnv,H, gamma=0.99,
                  n_actions=2, max_size=1000000, layer1_size=400,
-                 layer2_size=300, batch_size=64):
+                 layer2_size=300, batch_size=64,mode='Train'):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
@@ -201,9 +201,10 @@ class Agent(object):
         self.target_critic = CriticNetwork(beta, input_dims, layer1_size,
                                            layer2_size, n_actions=n_actions,
                                            name='TargetCritic')
-
-        self.noise = OUActionNoise(mu=np.zeros(n_actions))
-
+        if mode=='Exploit:':
+            self.noise = OUActionNoise(mu=np.zeros(n_actions),sigma=0,theta=0)
+        else:
+            self.noise = OUActionNoise(mu=np.zeros(n_actions))
         self.update_network_parameters(tau=1)
 
     def choose_action(self, observation):
@@ -254,7 +255,7 @@ class Agent(object):
             for k in range(self.H):
                 
                 #print(sim_action)
-                sim_new_state, sim_reward, sim_done,sim_truncated ,sim_info= self.model.step(sim_action)
+                sim_new_state, sim_reward, sim_done,sim_truncated ,sim_info= self.model.step(3*sim_action)
                 sim_action=self.choose_action(sim_new_state)
                 vH+=sim_reward*self.gamma**j
             target.append(reward[j] + self.gamma*critic_value_[j]*done[j]+vH)
