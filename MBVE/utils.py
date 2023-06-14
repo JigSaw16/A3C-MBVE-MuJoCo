@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt 
 import numpy as np
 def plotLearning(scores, filename, x=None, window=5):   
-    print("test")
     N = len(scores)
     running_avg = np.empty(N)
     for t in range(N):
