@@ -1,7 +1,7 @@
 # Implementation of algarithms A3C and MBVE in MuJoCo in Python
-## A3C algarithm
+## A3C algorithm
 ```
-// Assume global shared parameter vectors θ and θv and global shared counter T = 0 \
+// Assume global shared parameter vectors θ and θv and global shared counter T = 0 
 // Assume thread-specific parameter vectors θ0 and θ0v
 Initialize thread step counter t ← 1
 repeat
@@ -26,3 +26,6 @@ Reset gradients: dθ ← 0 and dθv ← 0.
     Perform asynchronous update of θ using dθ and of θv using dθv.
 until T > Tmax
 ```
+## MBVE algorithm
+MBVE is based on DDGP with modification of including information about future reward and states based of the model of the environment.
+In our case we use second mujoco simulation as a perfect model. Most important part of the algorithm is located in learn() method of Agent class.
